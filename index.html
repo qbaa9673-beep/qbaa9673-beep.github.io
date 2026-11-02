@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M9al9 Studio | مقلق استديو</title>
+    <!-- استدعاء خطوط عربية وسينمائية مميزة -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #05070a;
+            --card-bg: #0d121d;
+            --border-color: #1b263b;
+            --accent-blue: #2563eb;
+            --text-light: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-accent: #60a5fa;
+            --horror-red: #7f1d1d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cairo', system-ui, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            overflow-x: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 15px;
+            background: radial-gradient(circle at center, #0b1329 0%, #030508 100%);
+        }
+
+        /* الهيدر والعنوان الرئيسية */
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .studio-logo {
+            font-family: 'Cinzel', serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #ffffff;
+            text-transform: uppercase;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+            margin-bottom: 4px;
+        }
+
+        .studio-sub {
+            font-size: 0.9rem;
+            color: var(--text-accent);
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Container */
+        main {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* قسم اللعبة الرئيسية */
+        .game-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            background-color: var(--accent-blue);
+        }
+
+        .game-tag {
+            display: inline-block;
+            font-size: 0.75rem;
+            background-color: #1e293b;
+            color: var(--text-accent);
+            padding: 3px 10px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .game-title {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .game-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        /* أزرار الروابط */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background-color: #161f30;
+            color: var(--text-light);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.98);
+            background-color: #1e2d46;
+        }
+
+        /* قسم وسائل التواصل */
+        .social-section {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            color: #ffffff;
+            margin-bottom: 15px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        /* الفوتر */
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        footer strong {
+            color: var(--text-light);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- الهيدر -->
+    <header>
+        <div class="studio-logo">M9AL9 STUDIO</div>
+        <div class="studio-sub">مقلق استديو لتطوير الألعاب</div>
+    </header>
+
+    <!-- المحتوى الرئيسي -->
+    <main>
+        <!-- مشروع لعبة الضيف -->
+        <div class="game-card">
+            <span class="game-tag">مشروع رعب نفسي</span>
+            <h1 class="game-title">لعبة الضيف (ELDAIF)</h1>
+            <p class="game-desc">
+                تجربة رعب سوداوية استغرق تطويرها أكثر من 6 أشهر. استكشف الأسرار واستعد لمواجهة المجهول في بيئة غامضة ومليئة بالغموض.
+            </p>
+            
+            <div class="btn-group">
+                <!-- رابط صفحة اللعبة على itch.io -->
+                <a href="https://rkh-dz.itch.io/eldaif" target="_blank" class="btn btn-primary">
+                    صفحة اللعبة على itch.io 🎮
+                </a>
+
+                <!-- رابط انستغرام اللعبة -->
+                <a href="https://www.instagram.com/denji__dz?stkn=MW43dm91emkxYW91eQ==" target="_blank" class="btn btn-secondary">
+                    حساب اللعبة على Instagram 📸
+                </a>
+            </div>
+        </div>
+
+        <!-- قنوات المطور والتواصل -->
+        <div class="social-section">
+            <h2 class="section-title">قنوات المطور والرسميات</h2>
+            <div class="btn-group">
+                <!-- رابط قناة اليوتيوب -->
+                <a href="https://youtube.com/@a7med_el9ba3?si=7LP-UDueIYs4p7r4" target="_blank" class="btn btn-secondary">
+                    قناة اليوتيوب (القباع | gamer) 🎬
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- الفوتر -->
+    <footer>
+        <p>جميع الحقوق محفوظة &copy; <span id="year"></span> | <strong>M9al9 Studio</strong></p>
+    </footer>
+
+    <script>
+        document.getElementById('year').innerText = new Date().getFullYear();
+    </script>
+</body>
+</html>
