@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محادثة</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .app-container { width: 100%; max-width: 950px; height: 90vh; background: #fff; display: flex; flex-direction: column; border: 1px solid #eaeaea; border-radius: 6px; overflow: hidden; }
+        .chat-header { padding: 10px 15px; background: #fdf6e2; border-bottom: 1px solid #faebc2; display: flex; align-items: center; gap: 12px; }
+        .back-btn { cursor: pointer; font-size: 13px; color: #8a6d0b; text-decoration: none; font-weight: bold; }
+        .chat-user-info { display: flex; flex-direction: column; }
+        .chat-name { font-weight: bold; font-size: 13px; color: #333; }
+        .chat-status { font-size: 11px; color: #777; }
+        .messages-area { flex: 1; padding: 15px; overflow-y: auto; background: #fdfbf7; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 70%; padding: 10px; border-radius: 6px; font-size: 13px; line-height: 1.4; word-break: break-word; }
+        .msg.incoming { background: #fff; border: 1px solid #eaeaea; align-self: flex-start; color: #333; }
+        .msg.outgoing { background: #fef3d0; border: 1px solid #faebc2; align-self: flex-end; color: #333; }
+        .chat-input-box { display: flex; padding: 10px; background: #fff; border-top: 1px solid #eaeaea; gap: 10px; }
+        .chat-input-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; outline: none; font-size: 13px; }
+        .chat-input-box button { background: #d4a017; color: white; border: none; padding: 0 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="chat-header">
+            <a href="index.html" class="back-btn">← رجوع</a>
+            <div class="chat-user-info">
+                <div class="chat-name" id="chatUserName">المحادثة</div>
+                <div class="chat-status" id="chatUserStatus">جاري التحميل...</div>
+            </div>
+        </div>
+        <div class="messages-area" id="messagesArea">
+            <div style="text-align: center; color: #777; font-size: 12px; margin-top: 10px;">جاري تحميل الرسائل...</div>
+        </div>
+        <div class="chat-input-box">
+            <input type="text" id="msgInput" placeholder="اكتب رسالة...">
+            <button id="sendBtn">إرسال</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, push, set, onChildAdded, onValue, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjZ7_KNTVAoBb2WnYselvQNd39YMZOarw",
+          authDomain: "my-wats-test.firebaseapp.com",
+          databaseURL: "https://my-wats-test-default-rtdb.firebaseio.com",
+          projectId: "my-wats-test",
+          storageBucket: "my-wats-test.firebasestorage.app",
+          messagingSenderId: "1094683201140",
+          appId: "1:1094683201140:web:b9f42046692f09353e8b21",
+          measurementId: "G-RZ5G8WYYY3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const peerUid = urlParams.get('uid');
+        const peerName = urlParams.get('name');
+
+        if (peerName) {
+            document.getElementById('chatUserName').innerText = decodeURIComponent(peerName);
+        }
+
+        let currentUser = null;
+        const messagesArea = document.getElementById('messagesArea');
+        const msgInput = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // تحميل الرسائل المحفوظة أوفلاين مسبقاً لهذه المحادثة فوراً
+        const cacheKey = `offline_messages_${peerUid}`;
+        const cachedMessages = localStorage.getItem(cacheKey);
+        if (cachedMessages) {
+            messagesArea.innerHTML = cachedMessages;
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "auth.html";
+            } else {
+                currentUser = user;
+                
+                const statusRef = ref(db, 'status/' + user.uid);
+                set(statusRef, { state: 'online', lastChanged: serverTimestamp() }).catch(() => {});
+                onDisconnect(statusRef).set({ state: 'offline', lastChanged: serverTimestamp() });
+
+                if (peerUid) {
+                    loadMessages();
+                    trackPeerStatus();
+                } else {
+                    messagesArea.innerHTML = "<div style='text-align:center; color:#d9534f; font-size:13px;'>لم يتم تحديد المستخدم.</div>";
+                }
+            }
+        });
+
+        function timeAgo(timestamp) {
+            const seconds = Math.floor((Date.now() - timestamp) / 1000);
+            let interval = Math.floor(seconds / 31536000);
+            if (interval > 1) return `منذ ${interval} سنة`;
+            if (interval === 1) return "منذ سنة";
+            interval = Math.floor(seconds / 2592000);
+            if (interval > 1) return `منذ ${interval} شهر`;
+            if (interval === 1) return "منذ شهر";
+            interval = Math.floor(seconds / 86400);
+            if (interval > 1) return `منذ ${interval} أيام`;
+            if (interval === 1) return "منذ يوم";
+            interval = Math.floor(seconds / 3600);
+            if (interval > 1) return `منذ ${interval} ساعات`;
+            if (interval === 1) return "منذ ساعة";
+            interval = Math.floor(seconds / 60);
+            if (interval > 1) return `منذ ${interval} دقيقة`;
+            if (interval === 1) return "منذ دقيقة";
+            return "منذ لحظات";
+        }
+
+        function trackPeerStatus() {
+            const peerStatusRef = ref(db, 'status/' + peerUid);
+            onValue(peerStatusRef, (snapshot) => {
+                const statusEl = document.getElementById('chatUserStatus');
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    if (data.state === 'online') {
+                        statusEl.innerHTML = "<span style='color: #28a745;'>● متصل الآن</span>";
+                    } else if (data.lastChanged) {
+                        statusEl.innerText = `آخر ظهور ${timeAgo(data.lastChanged)}`;
+                    } else {
+                        statusEl.innerText = "غير متصل";
+                    }
+                } else {
+                    statusEl.innerText = "غير متصل";
+                }
+            });
+        }
+
+        function getChatId(uid1, uid2) {
+            return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+        }
+
+        function loadMessages() {
+            const chatId = getChatId(currentUser.uid, peerUid);
+            const chatRef = ref(db, 'chats/' + chatId);
+            
+            let isFirst = true;
+            onChildAdded(chatRef, (snapshot) => {
+                if (isFirst && !cachedMessages) {
+                    messagesArea.innerHTML = "";
+                    isFirst = false;
+                } else if (isFirst) {
+                    isFirst = false;
+                }
+                const msgData = snapshot.val();
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'msg ' + (msgData.sender === currentUser.uid ? 'outgoing' : 'incoming');
+                msgDiv.innerText = msgData.text;
+                messagesArea.appendChild(msgDiv);
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+
+                // تحديث الذاكرة المؤقتة أوفلاين
+                localStorage.setItem(cacheKey, messagesArea.innerHTML);
+            });
+
+            setTimeout(() => {
+                if (isFirst && !cachedMessages) {
+                    messagesArea.innerHTML = "<div style='text-align:center; color:#777; font-size:12px;'>لا توجد رسائل سابقة. ابدأ المحادثة الآن!</div>";
+                }
+            }, 1000);
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const text = msgInput.value.trim();
+            if (!text || !peerUid) return;
+
+            const chatId = getChatId(currentUser.uid, peerUid);
+            const chatRef = ref(db, 'chats/' + chatId);
+            const newMsgRef = push(chatRef);
+
+            set(newMsgRef, {
+                sender: currentUser.uid,
+                text: text,
+                timestamp: Date.now()
+            }).then(() => {
+                msgInput.value = "";
+            }).catch(() => {
+                alert("فشل الإرسال: تحقق من اتصالك بالإنترنت.");
+            });
+        }
+    </script>
+</body>
+</html>

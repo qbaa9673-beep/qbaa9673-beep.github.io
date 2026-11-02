@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المحادثات</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .app-container { width: 100%; max-width: 950px; height: 90vh; background: #fff; display: flex; flex-direction: column; border: 1px solid #eaeaea; border-radius: 6px; overflow: hidden; }
+        .nav-bar { display: flex; background: #fff; border-bottom: 1px solid #eaeaea; font-size: 12px; }
+        .nav-link { flex: 1; padding: 12px; text-align: center; color: #666; text-decoration: none; font-weight: bold; }
+        .nav-link.active { color: #d4a017; border-bottom: 2px solid #d4a017; }
+        .header-top { padding: 12px 15px; background: #fdf6e2; color: #8a6d0b; font-weight: bold; font-size: 14px; border-bottom: 1px solid #faebc2; }
+        .chat-list { flex: 1; overflow-y: auto; background: #fdfbf7; }
+        .chat-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 12px; background: #fff; }
+        .chat-item:hover { background: #fcf9f0; }
+        .chat-name { font-size: 14px; color: #333; font-weight: bold; }
+        .chat-status { font-size: 11px; color: #777; margin-top: 3px; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="nav-bar">
+            <a href="main.html" class="nav-link active">المحادثات</a>
+            <a href="explore.html" class="nav-link">استكشاف</a>
+            <a href="feed.html" class="nav-link">المنشورات</a>
+            <a href="profile.html" class="nav-link">بروفايل</a>
+        </div>
+        <div class="header-top">المحادثات النشطة</div>
+        <div class="chat-list" id="chatList">
+            <div style="text-align: center; color: #777; font-size: 13px; margin-top: 40px;">جاري التحميل...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, get, set, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjZ7_KNTVAoBb2WnYselvQNd39YMZOarw",
+          authDomain: "my-wats-test.firebaseapp.com",
+          databaseURL: "https://my-wats-test-default-rtdb.firebaseio.com",
+          projectId: "my-wats-test",
+          storageBucket: "my-wats-test.firebasestorage.app",
+          messagingSenderId: "1094683201140",
+          appId: "1:1094683201140:web:b9f42046692f09353e8b21",
+          measurementId: "G-RZ5G8WYYY3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const chatList = document.getElementById('chatList');
+        const cachedContacts = localStorage.getItem('offline_contacts_html');
+        if (cachedContacts) { chatList.innerHTML = cachedContacts; }
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "auth.html";
+            } else {
+                // تحديث حالة الاتصال للمستخدم الحالي
+                const statusRef = ref(db, 'status/' + user.uid);
+                set(statusRef, { state: 'online', lastChanged: serverTimestamp() }).catch(() => {});
+                onDisconnect(statusRef).set({ state: 'offline', lastChanged: serverTimestamp() });
+
+                loadMyContacts(user.uid);
+            }
+        });
+
+        function timeAgo(timestamp) {
+            const seconds = Math.floor((Date.now() - timestamp) / 1000);
+            
+            let interval = Math.floor(seconds / 31536000);
+            if (interval > 1) return `منذ ${interval} سنة`;
+            if (interval === 1) return "منذ سنة";
+
+            interval = Math.floor(seconds / 2592000);
+            if (interval > 1) return `منذ ${interval} شهر`;
+            if (interval === 1) return "منذ شهر";
+
+            interval = Math.floor(seconds / 86400);
+            if (interval > 1) return `منذ ${interval} أيام`;
+            if (interval === 1) return "منذ يوم";
+
+            interval = Math.floor(seconds / 3600);
+            if (interval > 1) return `منذ ${interval} ساعات`;
+            if (interval === 1) return "منذ ساعة";
+
+            interval = Math.floor(seconds / 60);
+            if (interval > 1) return `منذ ${interval} دقيقة`;
+            if (interval === 1) return "منذ دقيقة";
+
+            return "منذ لحظات";
+        }
+
+        function loadMyContacts(currentUid) {
+            Promise.all([
+                get(ref(db, 'contacts/' + currentUid)),
+                get(ref(db, 'users')),
+                get(ref(db, 'status'))
+            ]).then(([contactsSnap, usersSnap, statusSnap]) => {
+                chatList.innerHTML = "";
+                if (!contactsSnap.exists() || !usersSnap.exists()) {
+                    chatList.innerHTML = "<div style='text-align:center; color:#777; font-size:13px; margin-top:40px;'>لا توجد محادثات. اذهب للاستكشاف لإضافة أصدقاء.</div>";
+                    return;
+                }
+
+                const contacts = contactsSnap.val();
+                const users = usersSnap.val();
+                const statuses = statusSnap.exists() ? statusSnap.val() : {};
+                let count = 0;
+                let htmlOutput = "";
+
+                for (let peerUid in contacts) {
+                    if (contacts[peerUid] === true && users[peerUid]) {
+                        count++;
+                        const u = users[peerUid];
+                        const peerStatus = statuses[peerUid];
+                        let statusText = "غير متصل";
+                        let statusColor = "#777";
+
+                        if (peerStatus && peerStatus.state === 'online') {
+                            statusText = "● متصل الآن";
+                            statusColor = "#28a745";
+                        } else if (peerStatus && peerStatus.lastChanged) {
+                            statusText = `آخر ظهور ${timeAgo(peerStatus.lastChanged)}`;
+                        }
+
+                        htmlOutput += `
+                            <div class="chat-item" onclick="window.location.href='chat.html?uid=${u.uid}&name=${encodeURIComponent(u.name)}'">
+                                <div style="font-size: 24px;">👤</div>
+                                <div class="chat-info" style="flex:1;">
+                                    <div class="chat-name">${u.name}</div>
+                                    <div class="chat-status" style="color: ${statusColor};">${statusText}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                if (count === 0) {
+                    chatList.innerHTML = "<div style='text-align:center; color:#777; font-size:13px; margin-top:40px;'>لا توجد محادثات. اذهب للاستكشاف لإضافة أصدقاء.</div>";
+                } else {
+                    chatList.innerHTML = htmlOutput;
+                    localStorage.setItem('offline_contacts_html', htmlOutput);
+                }
+            }).catch(() => {
+                if (!cachedContacts) {
+                    chatList.innerHTML = "<div style='text-align:center; color:#777; font-size:13px; margin-top:40px;'>أنت غير متصل بالإنترنت.</div>";
+                }
+            });
+        }
+    </script>
+</body>
+</html>

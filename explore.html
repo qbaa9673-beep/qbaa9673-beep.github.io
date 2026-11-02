@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الاستكشاف</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; height: 100vh; justify-content: center; align-items: center; }
+        .app-container { width: 100%; max-width: 950px; height: 90vh; background: #fff; display: flex; flex-direction: column; border: 1px solid #eaeaea; border-radius: 6px; overflow: hidden; }
+        .nav-bar { display: flex; background: #fff; border-bottom: 1px solid #eaeaea; font-size: 12px; }
+        .nav-link { flex: 1; padding: 12px; text-align: center; color: #666; text-decoration: none; font-weight: bold; }
+        .nav-link.active { color: #d4a017; border-bottom: 2px solid #d4a017; }
+        .content-area { flex: 1; padding: 20px; background: #fdfbf7; overflow-y: auto; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; outline: none; font-size: 13px; }
+        .search-box button { background: #d4a017; color: white; border: none; padding: 0 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .user-card { background: #fff; border: 1px solid #eaeaea; padding: 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .add-btn { background: #fef3d0; color: #8a6d0b; border: 1px solid #faebc2; padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .add-btn.pending { background: #e2e3e5; color: #383d41; border-color: #d6d8db; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="nav-bar">
+            <a href="index.html" class="nav-link">المحادثات</a>
+            <a href="explore.html" class="nav-link active">استكشاف</a>
+            <a href="feed.html" class="nav-link">المنشورات</a>
+            <a href="profile.html" class="nav-link">بروفايل</a>
+        </div>
+        <div class="content-area">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="ابحث بالاسم أو الـ ID...">
+                <button id="searchBtn">بحث</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjZ7_KNTVAoBb2WnYselvQNd39YMZOarw",
+          authDomain: "my-wats-test.firebaseapp.com",
+          databaseURL: "https://my-wats-test-default-rtdb.firebaseio.com",
+          projectId: "my-wats-test",
+          storageBucket: "my-wats-test.firebasestorage.app",
+          messagingSenderId: "1094683201140",
+          appId: "1:1094683201140:web:b9f42046692f09353e8b21",
+          measurementId: "G-RZ5G8WYYY3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) { window.location.href = "auth.html"; }
+            else { currentUser = user; loadUsers(); }
+        });
+
+        function loadUsers() {
+            const res = document.getElementById('searchResults');
+            Promise.all([
+                get(ref(db, 'users')),
+                get(ref(db, 'friendRequests/' + currentUser.uid)),
+                get(ref(db, 'contacts/' + currentUser.uid))
+            ]).then(([usersSnap, reqSnap, contactsSnap]) => {
+                if (usersSnap.exists()) {
+                    res.innerHTML = "";
+                    const sentReqs = reqSnap.exists() ? reqSnap.val() : {};
+                    const contacts = contactsSnap.exists() ? contactsSnap.val() : {};
+
+                    usersSnap.forEach((child) => {
+                        const u = child.val();
+                        if (u.uid !== currentUser.uid) {
+                            const isAdded = contacts[u.uid] === true;
+                            const isPending = sentReqs[u.uid] === 'pending';
+                            appendCard(u, res, isAdded, isPending);
+                        }
+                    });
+                }
+            });
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            const q = document.getElementById('searchInput').value.trim().toLowerCase().replace('#', '');
+            const res = document.getElementById('searchResults');
+            if(!q) { loadUsers(); return; }
+
+            Promise.all([
+                get(ref(db, 'users')),
+                get(ref(db, 'friendRequests/' + currentUser.uid)),
+                get(ref(db, 'contacts/' + currentUser.uid))
+            ]).then(([usersSnap, reqSnap, contactsSnap]) => {
+                if (usersSnap.exists()) {
+                    res.innerHTML = "";
+                    const sentReqs = reqSnap.exists() ? reqSnap.val() : {};
+                    const contacts = contactsSnap.exists() ? contactsSnap.val() : {};
+
+                    usersSnap.forEach((child) => {
+                        const u = child.val();
+                        if (u.uid !== currentUser.uid) {
+                            if (u.shortId.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)) {
+                                const isAdded = contacts[u.uid] === true;
+                                const isPending = sentReqs[u.uid] === 'pending';
+                                appendCard(u, res, isAdded, isPending);
+                            }
+                        }
+                    });
+                }
+            });
+        });
+
+        window.sendFriendRequest = function(peerUid) {
+            // إرسال الطلب إلى صندوق إشعارات الطرف الآخر
+            set(ref(db, `friendRequests/${peerUid}/${currentUser.uid}`), 'pending').then(() => {
+                alert("تم إرسال طلب الصداقة بنجاح!");
+                loadUsers();
+            });
+        };
+
+        function appendCard(u, container, isAdded, isPending) {
+            const card = document.createElement('div');
+            card.className = 'user-card';
+            
+            let btnHtml = '';
+            if (isAdded) {
+                btnHtml = `<button class="add-btn pending" disabled>صديق</button>`;
+            } else if (isPending) {
+                btnHtml = `<button class="add-btn pending" disabled>تم إرسال الطلب</button>`;
+            } else {
+                btnHtml = `<button class="add-btn" onclick="sendFriendRequest('${u.uid}')">إضافة صديق</button>`;
+            }
+
+            card.innerHTML = `
+                <div>
+                    <div style="font-weight:bold; font-size:14px;">${u.name} (${u.accountType === 'private' ? 'خاص' : 'عام'})</div>
+                    <div style="font-size:11px; color:#777;">ID: #${u.shortId}</div>
+                </div>
+                <div>${btnHtml}</div>
+            `;
+            container.appendChild(card);
+        }
+    </script>
+</body>
+</html>

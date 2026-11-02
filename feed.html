@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المنشورات العامة</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; height: 100vh; justify-content: center; align-items: center; }
+        .app-container { width: 100%; max-width: 950px; height: 90vh; background: #fff; display: flex; flex-direction: column; border: 1px solid #eaeaea; border-radius: 6px; overflow: hidden; }
+        .nav-bar { display: flex; background: #fff; border-bottom: 1px solid #eaeaea; font-size: 12px; }
+        .nav-link { flex: 1; padding: 12px; text-align: center; color: #666; text-decoration: none; font-weight: bold; }
+        .nav-link.active { color: #d4a017; border-bottom: 2px solid #d4a017; }
+        .content-area { flex: 1; padding: 20px; background: #fdfbf7; overflow-y: auto; }
+        .post-box { background: #fff; border: 1px solid #eaeaea; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+        .post-box textarea { width: 100%; height: 70px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; outline: none; font-size: 13px; resize: none; margin-bottom: 10px; }
+        .post-btn { background: #d4a017; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        
+        .post-card { background: #fff; border: 1px solid #eaeaea; padding: 15px; border-radius: 4px; margin-bottom: 15px; }
+        .post-author { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 8px; }
+        .post-text { font-size: 13px; color: #444; line-height: 1.5; margin-bottom: 12px; white-space: pre-wrap; }
+        .post-actions { display: flex; gap: 15px; border-top: 1px solid #f5f5f5; padding-top: 10px; font-size: 12px; }
+        .action-item { cursor: pointer; color: #666; font-weight: bold; }
+        .action-item:hover { color: #d4a017; }
+        
+        .comments-section { margin-top: 10px; border-top: 1px dashed #eee; padding-top: 8px; display: none; }
+        .comment-item { font-size: 12px; color: #444; background: #f8f9fa; padding: 5px 8px; border-radius: 4px; margin-bottom: 4px; }
+        .comment-input-box { display: flex; gap: 5px; margin-top: 8px; }
+        .comment-input-box input { flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; }
+        .comment-input-box button { background: #d4a017; color: white; border: none; padding: 0 12px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="nav-bar">
+            <a href="index.html" class="nav-link">المحادثات</a>
+            <a href="explore.html" class="nav-link">استكشاف</a>
+            <a href="feed.html" class="nav-link active">المنشورات</a>
+            <a href="profile.html" class="nav-link">بروفايل</a>
+        </div>
+        <div class="content-area">
+            <div class="post-box">
+                <textarea id="postInput" placeholder="بماذا تفكر؟ اشرك الآخرين أفكارك..."></textarea>
+                <button class="post-btn" id="publishBtn">نشر</button>
+            </div>
+            <div id="postsList">
+                <div style="font-size: 13px; color: #777; text-align: center; margin-top: 20px;">جاري التحميل...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, push, set, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjZ7_KNTVAoBb2WnYselvQNd39YMZOarw",
+          authDomain: "my-wats-test.firebaseapp.com",
+          databaseURL: "https://my-wats-test-default-rtdb.firebaseio.com",
+          projectId: "my-wats-test",
+          storageBucket: "my-wats-test.firebasestorage.app",
+          messagingSenderId: "1094683201140",
+          appId: "1:1094683201140:web:b9f42046692f09353e8b21",
+          measurementId: "G-RZ5G8WYYY3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        let currentUser = null;
+        let currentUserName = localStorage.getItem('offline_profile_name') || "مستخدم";
+        const postsList = document.getElementById('postsList');
+
+        const cachedFeedHtml = localStorage.getItem('offline_feed_html');
+        if (cachedFeedHtml) {
+            postsList.innerHTML = cachedFeedHtml;
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) { 
+                window.location.href = "auth.html"; 
+            } else {
+                currentUser = user;
+                
+                // جلب الاسم الصحيح من قاعدة البيانات أو الاعتماد على المخزن محلياً
+                get(ref(db, 'users/' + user.uid)).then((snap) => {
+                    if (snap.exists() && snap.val().name) {
+                        currentUserName = snap.val().name;
+                        localStorage.setItem('offline_profile_name', currentUserName);
+                    } else {
+                        currentUserName = localStorage.getItem('offline_profile_name') || user.email.split('@')[0];
+                    }
+                    loadPosts();
+                }).catch(() => {
+                    loadPosts();
+                });
+            }
+        });
+
+        document.getElementById('publishBtn').addEventListener('click', () => {
+            const text = document.getElementById('postInput').value.trim();
+            if(!text) return;
+
+            push(ref(db, 'posts'), {
+                uid: currentUser.uid,
+                author: currentUserName,
+                text: text,
+                timestamp: Date.now()
+            }).then(() => { 
+                document.getElementById('postInput').value = ""; 
+                loadPosts();
+            }).catch(() => {
+                alert("أنت غير متصل بالإنترنت حالياً.");
+            });
+        });
+
+        function loadPosts() {
+            get(ref(db, 'posts')).then((snapshot) => {
+                if(snapshot.exists()) {
+                    postsList.innerHTML = "";
+                    let allHtml = "";
+                    
+                    snapshot.forEach((child) => {
+                        const postKey = child.key;
+                        const postData = child.val();
+                        
+                        const cardHtml = `
+                            <div class="post-card">
+                                <div class="post-author">${postData.author || "مستخدم"}</div>
+                                <div class="post-text">${postData.text}</div>
+                                <div class="post-actions">
+                                    <span class="action-item" onclick="toggleLike('${postKey}', '${postData.uid}')">👍 إعجاب (<span id="likes_${postKey}">...</span>)</span>
+                                    <span class="action-item" onclick="toggleCommentsBox('${postKey}')">💬 تعليق</span>
+                                </div>
+                                <div class="comments-section" id="box_${postKey}">
+                                    <div id="comments_${postKey}">جاري تحميل التعليقات...</div>
+                                    <div class="comment-input-box">
+                                        <input type="text" id="cInput_${postKey}" placeholder="اكتب تعليقاً...">
+                                        <button onclick="addComment('${postKey}', '${postData.uid}')">إرسال</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        allHtml = cardHtml + allHtml;
+                    });
+
+                    postsList.innerHTML = allHtml;
+                    localStorage.setItem('offline_feed_html', allHtml);
+
+                    snapshot.forEach((child) => {
+                        const postKey = child.key;
+                        loadLikesCount(postKey);
+                        loadComments(postKey);
+                    });
+                } else {
+                    postsList.innerHTML = "<div style='font-size: 13px; color: #777; text-align: center; margin-top: 20px;'>لا توجد منشورات حالياً.</div>";
+                }
+            }).catch(() => {
+                if (!cachedFeedHtml) {
+                    postsList.innerHTML = "<div style='font-size: 13px; color: #777; text-align: center; margin-top: 20px;'>أنت غير متصل بالإنترنت.</div>";
+                }
+            });
+        }
+
+        window.toggleLike = function(postKey, postOwnerUid) {
+            const likeRef = ref(db, `likes/${postKey}/${currentUser.uid}`);
+            get(likeRef).then((snap) => {
+                if(snap.exists()) {
+                    set(likeRef, null).then(() => { loadLikesCount(postKey); });
+                } else {
+                    set(likeRef, true).then(() => {
+                        loadLikesCount(postKey);
+                        if(postOwnerUid !== currentUser.uid) {
+                            push(ref(db, `notifications/${postOwnerUid}`), {
+                                text: `${currentUserName} قام بالإعجاب بمنشورك`,
+                                timestamp: Date.now()
+                            });
+                        }
+                    });
+                }
+            }).catch(() => {});
+        };
+
+        function loadLikesCount(postKey) {
+            get(ref(db, `likes/${postKey}`)).then((snap) => {
+                let count = snap.exists() ? Object.keys(snap.val()).length : 0;
+                const el = document.getElementById(`likes_${postKey}`);
+                if(el) el.innerText = count;
+            }).catch(() => {});
+        }
+
+        window.toggleCommentsBox = function(postKey) {
+            const box = document.getElementById(`box_${postKey}`);
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        };
+
+        window.addComment = function(postKey, postOwnerUid) {
+            const input = document.getElementById(`cInput_${postKey}`);
+            const text = input.value.trim();
+            if(!text) return;
+
+            push(ref(db, `comments/${postKey}`), {
+                author: currentUserName,
+                text: text,
+                timestamp: Date.now()
+            }).then(() => {
+                input.value = "";
+                loadComments(postKey);
+                if(postOwnerUid !== currentUser.uid) {
+                    push(ref(db, `notifications/${postOwnerUid}`), {
+                        text: `${currentUserName} علق على منشورك: "${text}"`,
+                        timestamp: Date.now()
+                    });
+                }
+            }).catch(() => {});
+        };
+
+        function loadComments(postKey) {
+            const container = document.getElementById(`comments_${postKey}`);
+            if(!container) return;
+            get(ref(db, `comments/${postKey}`)).then((snap) => {
+                container.innerHTML = "";
+                if(snap.exists()) {
+                    snap.forEach((child) => {
+                        const c = child.val();
+                        const div = document.createElement('div');
+                        div.className = 'comment-item';
+                        div.innerHTML = `<b>${c.author || "مستخدم"}:</b> ${c.text}`;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = "<div style='font-size:11px; color:#777;'>لا توجد تعليقات.</div>";
+                }
+            }).catch(() => {});
+        }
+    </script>
+</body>
+</html>

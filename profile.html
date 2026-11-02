@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الملف الشخصي</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; height: 100vh; justify-content: center; align-items: center; }
+        .app-container { width: 100%; max-width: 950px; height: 90vh; background: #fff; display: flex; flex-direction: column; border: 1px solid #eaeaea; border-radius: 6px; overflow: hidden; position: relative; }
+        .nav-bar { display: flex; background: #fff; border-bottom: 1px solid #eaeaea; font-size: 12px; }
+        .nav-link { flex: 1; padding: 12px; text-align: center; color: #666; text-decoration: none; font-weight: bold; }
+        .nav-link.active { color: #d4a017; border-bottom: 2px solid #d4a017; }
+        .content-area { flex: 1; padding: 20px; background: #fdfbf7; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        .settings-menu-container { position: absolute; top: 15px; left: 15px; }
+        .menu-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: #666; padding: 5px 10px; }
+        .dropdown-menu { display: none; position: absolute; left: 0; top: 35px; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 130px; z-index: 10; }
+        .dropdown-item { padding: 8px 12px; font-size: 12px; color: #d9534f; cursor: pointer; text-align: right; font-weight: bold; }
+        .dropdown-item:hover { background: #f9f2f2; }
+        .profile-card { width: 100%; max-width: 450px; background: #fff; border: 1px solid #eaeaea; padding: 25px; border-radius: 6px; text-align: center; margin-bottom: 15px; }
+        .username-container { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px; }
+        .edit-name-btn { background: none; border: none; color: #d4a017; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .privacy-box { margin: 15px 0; font-size: 13px; color: #555; background: #fcf9f0; padding: 10px; border-radius: 4px; border: 1px solid #faebc2; display: flex; justify-content: space-between; align-items: center; }
+        .privacy-box select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; outline: none; font-size: 12px; }
+        .action-btn { width: 100%; padding: 11px; background: #fff; color: #555; border: 1px solid #e0e0e0; border-radius: 4px; font-weight: bold; cursor: pointer; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .badge { background: #d4a017; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; }
+        .box-container { width: 100%; max-width: 450px; background: #fff; border: 1px solid #eaeaea; padding: 15px; border-radius: 6px; display: none; margin-bottom: 10px; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 12px; color: #333; }
+        .btn-green { background: #28a745; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .btn-red { background: #d9534f; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="settings-menu-container">
+            <button class="menu-btn" onclick="toggleDropdown()">⋮</button>
+            <div class="dropdown-menu" id="settingsDropdown">
+                <div class="dropdown-item" onclick="confirmLogout()">تسجيل الخروج</div>
+            </div>
+        </div>
+
+        <div class="nav-bar">
+            <a href="index.html" class="nav-link">المحادثات</a>
+            <a href="explore.html" class="nav-link">استكشاف</a>
+            <a href="feed.html" class="nav-link">المنشورات</a>
+            <a href="profile.html" class="nav-link active">بروفايل</a>
+        </div>
+
+        <div class="content-area">
+            <div class="profile-card">
+                <div style="font-size: 50px; margin-bottom: 10px;">👤</div>
+                <div class="username-container">
+                    <h3 id="profileName">مستخدم</h3>
+                    <button class="edit-name-btn" onclick="editProfileName()">[تعديل]</button>
+                </div>
+                <div id="userUid" style="font-size: 11px; color: #777; margin-bottom: 15px;">ID: ...</div>
+
+                <div class="privacy-box">
+                    <span>حالة الحساب:</span>
+                    <select id="accountTypeSelect" onchange="updateAccountType()">
+                        <option value="private">خاص</option>
+                        <option value="public">عام</option>
+                    </select>
+                </div>
+
+                <button class="action-btn" onclick="toggleBox('requestsBoxContainer'); loadRequests();">
+                    <span>طلبات الصداقة</span><span class="badge" id="reqCount">0</span>
+                </button>
+                <button class="action-btn" onclick="toggleBox('notifBoxContainer'); loadNotifications();">
+                    <span>الإشعارات</span><span class="badge" id="notifCount">0</span>
+                </button>
+                <button class="action-btn" onclick="toggleBox('friendsBoxContainer'); loadFriends();">
+                    <span>قائمة أصدقائي</span>
+                </button>
+            </div>
+
+            <div class="box-container" id="requestsBoxContainer">
+                <h4 style="font-size: 13px; margin-bottom: 8px;">طلبات الصداقة الواردة</h4>
+                <div id="requestsContent">جاري التحميل...</div>
+            </div>
+
+            <div class="box-container" id="notifBoxContainer">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h4 style="font-size: 13px;">التنبيهات الأخيرة</h4>
+                    <span style="font-size: 11px; color: #d4a017; cursor: pointer; font-weight: bold;" onclick="clearAllNotifications()">مسح الكل</span>
+                </div>
+                <div id="notifContent">جاري التحميل...</div>
+            </div>
+
+            <div class="box-container" id="friendsBoxContainer">
+                <h4 style="font-size: 13px; margin-bottom: 8px;">الأصدقاء المضافون</h4>
+                <div id="friendsContent">جاري التحميل...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, set, get, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjZ7_KNTVAoBb2WnYselvQNd39YMZOarw",
+          authDomain: "my-wats-test.firebaseapp.com",
+          databaseURL: "https://my-wats-test-default-rtdb.firebaseio.com",
+          projectId: "my-wats-test",
+          storageBucket: "my-wats-test.firebasestorage.app",
+          messagingSenderId: "1094683201140",
+          appId: "1:1094683201140:web:b9f42046692f09353e8b21",
+          measurementId: "G-RZ5G8WYYY3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        let currentUser = null;
+
+        // تحميل الاسم المخزن محلياً فوراً لمنع أي وميض
+        if (localStorage.getItem('offline_profile_name')) {
+            document.getElementById('profileName').innerText = localStorage.getItem('offline_profile_name');
+        }
+        if (localStorage.getItem('offline_account_type')) {
+            document.getElementById('accountTypeSelect').value = localStorage.getItem('offline_account_type');
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = "auth.html";
+            } else {
+                currentUser = user;
+                document.getElementById('userUid').innerText = "ID: #" + user.uid.substring(0, 6);
+
+                // جلب بيانات المستخدم الحقيقية من قاعدة البيانات بدل الاعتماد على البريد
+                get(ref(db, 'users/' + user.uid)).then((snap) => {
+                    let displayName = "مستخدم";
+                    let displayType = "public";
+
+                    if (snap.exists() && snap.val().name) {
+                        displayName = snap.val().name;
+                        displayType = snap.val().accountType || "public";
+                    } else {
+                        // إذا لم يكن مخزناً في قاعدة البيانات، نأخذه من البريد كمرة واحدة فقط ثم نحفظه
+                        displayName = user.email.split('@')[0];
+                        set(ref(db, 'users/' + user.uid), {
+                            uid: user.uid,
+                            shortId: user.uid.substring(0, 6),
+                            name: displayName,
+                            accountType: displayType
+                        });
+                    }
+
+                    document.getElementById('profileName').innerText = displayName;
+                    document.getElementById('accountTypeSelect').value = displayType;
+                    
+                    localStorage.setItem('offline_profile_name', displayName);
+                    localStorage.setItem('offline_account_type', displayType);
+                }).catch(() => {
+                    // في حال انقطاع النت، نعتمد على المخزن محلياً
+                    const saved = localStorage.getItem('offline_profile_name');
+                    if (saved) document.getElementById('profileName').innerText = saved;
+                });
+
+                countRequests();
+                countNotifications();
+            }
+        });
+
+        window.toggleDropdown = function() {
+            const menu = document.getElementById('settingsDropdown');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        };
+
+        window.updateAccountType = function() {
+            if(!currentUser) return;
+            const type = document.getElementById('accountTypeSelect').value;
+            localStorage.setItem('offline_account_type', type);
+            update(ref(db, 'users/' + currentUser.uid), {
+                accountType: type
+            }).catch(() => {});
+        };
+
+        window.editProfileName = function() {
+            if(!currentUser) return;
+            const curName = document.getElementById('profileName').innerText;
+            const newName = prompt("أدخل الاسم الجديد:", curName);
+            if(newName && newName.trim() !== "") {
+                const trimmed = newName.trim();
+                document.getElementById('profileName').innerText = trimmed;
+                localStorage.setItem('offline_profile_name', trimmed);
+                
+                // تحديث الاسم فقط في قاعدة البيانات دون المسح أو الرجوع للبريد
+                update(ref(db, 'users/' + currentUser.uid), {
+                    name: trimmed
+                }).then(() => {
+                    alert("تم تحديث الاسم بنجاح!");
+                }).catch(() => {
+                    alert("تم التحديث محلياً (لا يوجد إنترنت).");
+                });
+            }
+        };
+
+        window.toggleBox = function(boxId) {
+            document.getElementById('requestsBoxContainer').style.display = 'none';
+            document.getElementById('notifBoxContainer').style.display = 'none';
+            document.getElementById('friendsBoxContainer').style.display = 'none';
+            document.getElementById(boxId).style.display = 'block';
+        };
+
+        function countRequests() {
+            if(!currentUser) return;
+            get(ref(db, 'friendRequests/' + currentUser.uid)).then((snap) => {
+                let c = snap.exists() ? Object.keys(snap.val()).length : 0;
+                document.getElementById('reqCount').innerText = c;
+                localStorage.setItem('offline_req_count', c);
+            }).catch(() => {
+                document.getElementById('reqCount').innerText = localStorage.getItem('offline_req_count') || 0;
+            });
+        }
+
+        function countNotifications() {
+            if(!currentUser) return;
+            get(ref(db, 'notifications/' + currentUser.uid)).then((snap) => {
+                let c = snap.exists() ? Object.keys(snap.val()).length : 0;
+                document.getElementById('notifCount').innerText = c;
+                localStorage.setItem('offline_notif_count', c);
+            }).catch(() => {
+                document.getElementById('notifCount').innerText = localStorage.getItem('offline_notif_count') || 0;
+            });
+        }
+
+        window.loadRequests = function() {
+            const content = document.getElementById('requestsContent');
+            if(!currentUser) return;
+            Promise.all([get(ref(db, 'friendRequests/' + currentUser.uid)), get(ref(db, 'users'))]).then(([reqSnap, usersSnap]) => {
+                content.innerHTML = "";
+                if(!reqSnap.exists() || !usersSnap.exists()) {
+                    content.innerHTML = "<div style='color:#777; font-size:11px;'>لا توجد طلبات جديدة.</div>";
+                    return;
+                }
+                const reqs = reqSnap.val();
+                const users = usersSnap.val();
+                let count = 0;
+                for(let senderUid in reqs) {
+                    if(reqs[senderUid] === 'pending' && users[senderUid]) {
+                        count++;
+                        const u = users[senderUid];
+                        const div = document.createElement('div');
+                        div.className = 'item-row';
+                        div.innerHTML = `<span>${u.name} (#${u.shortId})</span><div style="display:flex; gap:4px;"><button class="btn-green" onclick="acceptRequest('${senderUid}')">قبول</button><button class="btn-red" onclick="rejectRequest('${senderUid}')">رفض</button></div>`;
+                        content.appendChild(div);
+                    }
+                }
+                if(count === 0) content.innerHTML = "<div style='color:#777; font-size:11px;'>لا توجد طلبات جديدة.</div>";
+            }).catch(() => {
+                content.innerHTML = "<div style='color:#777; font-size:11px;'>أنت غير متصل بالإنترنت.</div>";
+            });
+        };
+
+        window.acceptRequest = function(senderUid) {
+            set(ref(db, `contacts/${currentUser.uid}/${senderUid}`), true).then(() => {
+                set(ref(db, `contacts/${senderUid}/${currentUser.uid}`), true).then(() => {
+                    remove(ref(db, `friendRequests/${currentUser.uid}/${senderUid}`)).then(() => {
+                        loadRequests();
+                        countRequests();
+                    });
+                });
+            });
+        };
+
+        window.rejectRequest = function(senderUid) {
+            remove(ref(db, `friendRequests/${currentUser.uid}/${senderUid}`)).then(() => {
+                loadRequests();
+                countRequests();
+            });
+        };
+
+        window.loadNotifications = function() {
+            const content = document.getElementById('notifContent');
+            if(!currentUser) return;
+            get(ref(db, 'notifications/' + currentUser.uid)).then((snap) => {
+                content.innerHTML = "";
+                if(!snap.exists()) {
+                    content.innerHTML = "<div style='color:#777; font-size:11px;'>لا توجد إشعارات.</div>";
+                    return;
+                }
+                snap.forEach((child) => {
+                    const notifKey = child.key;
+                    const notif = child.val();
+                    const div = document.createElement('div');
+                    div.className = 'item-row';
+                    div.innerHTML = `<span>🔔 ${notif.text}</span><button class="btn-red" style="padding:2px 6px; font-size:10px;" onclick="deleteNotification('${notifKey}')">حذف</button>`;
+                    content.appendChild(div);
+                });
+            }).catch(() => {
+                content.innerHTML = "<div style='color:#777; font-size:11px;'>أنت غير متصل بالإنترنت.</div>";
+            });
+        };
+
+        window.deleteNotification = function(notifKey) {
+            remove(ref(db, `notifications/${currentUser.uid}/${notifKey}`)).then(() => {
+                loadNotifications();
+                countNotifications();
+            });
+        };
+
+        window.clearAllNotifications = function() {
+            remove(ref(db, `notifications/${currentUser.uid}`)).then(() => {
+                loadNotifications();
+                countNotifications();
+            });
+        };
+
+        window.loadFriends = function() {
+            const content = document.getElementById('friendsContent');
+            if(!currentUser) return;
+            Promise.all([get(ref(db, 'contacts/' + currentUser.uid)), get(ref(db, 'users'))]).then(([cSnap, uSnap]) => {
+                content.innerHTML = "";
+                if(!cSnap.exists() || !uSnap.exists()) {
+                    content.innerHTML = "<div style='color:#777; font-size:11px;'>لا توجد أصدقاء مضافون.</div>";
+                    return;
+                }
+                const contacts = cSnap.val();
+                const users = uSnap.val();
+                let count = 0;
+                for(let peerUid in contacts) {
+                    if(contacts[peerUid] === true && users[peerUid]) {
+                        count++;
+                        const u = users[peerUid];
+                        const div = document.createElement('div');
+                        div.className = 'item-row';
+                        div.innerHTML = `<span>${u.name} (#${u.shortId})</span><button class="btn-red" onclick="removeFriend('${u.uid}')">إزالة</button>`;
+                        content.appendChild(div);
+                    }
+                }
+                if(count === 0) content.innerHTML = "<div style='color:#777; font-size:11px;'>لا توجد أصدقاء مضافون.</div>";
+            }).catch(() => {
+                content.innerHTML = "<div style='color:#777; font-size:11px;'>أنت غير متصل بالإنترنت.</div>";
+            });
+        };
+
+        window.removeFriend = function(peerUid) {
+            if(confirm("إزالة الصديق؟")) {
+                remove(ref(db, `contacts/${currentUser.uid}/${peerUid}`)).then(() => { loadFriends(); });
+            }
+        };
+
+        window.confirmLogout = function() {
+            if(confirm("هل أنت متأكد من تسجيل الخروج؟")) { 
+                localStorage.clear();
+                signOut(auth).then(() => { window.location.href = "auth.html"; }); 
+            }
+        };
+    </script>
+</body>
+</html>

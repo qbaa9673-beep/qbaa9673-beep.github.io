@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول / إنشاء حساب</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+            background: #fff;
+            border: 1px solid #eaeaea;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            transition: all 0.3s ease-in-out;
+        }
+
+        h2 { font-size: 20px; color: #333; margin-bottom: 20px; text-align: center; }
+        
+        .input-group {
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            outline: none;
+            font-size: 13px;
+            background: #fdfbf7;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: #d4a017;
+            background: #fff;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #d4a017;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: #b8860b; }
+
+        .switch-text {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 18px;
+            cursor: pointer;
+        }
+
+        .switch-text span {
+            color: #d4a017;
+            font-weight: bold;
+        }
+
+        /* حقل تأكيد كلمة المرور يظهر فقط عند إنشاء حساب */
+        #confirmGroup {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+        }
+
+        #confirmGroup.show {
+            max-height: 60px;
+            opacity: 1;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container" id="authCard">
+        <h2 id="formTitle">تسجيل الدخول</h2>
+        
+        <div class="input-group">
+            <input type="email" id="emailInput" placeholder="البريد الإلكتروني">
+        </div>
+        <div class="input-group">
+            <input type="password" id="passwordInput" placeholder="كلمة المرور">
+        </div>
+        
+        <!-- خانة تأكيد كلمة المرور للمستخدمين الجدد -->
+        <div class="input-group" id="confirmGroup">
+            <input type="password" id="confirmPasswordInput" placeholder="تأكيد كلمة المرور">
+        </div>
+
+        <button class="btn" id="authBtn">دخول</button>
+        
+        <div class="switch-text" id="switchBtn">
+            ليس لديك حساب؟ <span>إنشاء حساب جديد</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjZ7_KNTVAoBb2WnYselvQNd39YMZOarw",
+          authDomain: "my-wats-test.firebaseapp.com",
+          databaseURL: "https://my-wats-test-default-rtdb.firebaseio.com",
+          projectId: "my-wats-test",
+          storageBucket: "my-wats-test.firebasestorage.app",
+          messagingSenderId: "1094683201140",
+          appId: "1:1094683201140:web:b9f42046692f09353e8b21",
+          measurementId: "G-RZ5G8WYYY3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        setPersistence(auth, browserLocalPersistence);
+
+        let isLogin = true;
+        const formTitle = document.getElementById('formTitle');
+        const authBtn = document.getElementById('authBtn');
+        const switchBtn = document.getElementById('switchBtn');
+        const confirmGroup = document.getElementById('confirmGroup');
+
+        // التبديل السلس بين تسجيل الدخول والإنشاء
+        switchBtn.addEventListener('click', () => {
+            isLogin = !isLogin;
+            if (isLogin) {
+                formTitle.innerText = "تسجيل الدخول";
+                authBtn.innerText = "دخول";
+                switchBtn.innerHTML = `ليس لديك حساب؟ <span>إنشاء حساب جديد</span>`;
+                confirmGroup.classList.remove('show');
+            } else {
+                formTitle.innerText = "إنشاء حساب جديد";
+                authBtn.innerText = "تسجيل";
+                switchBtn.innerHTML = `لديك حساب بالفعل؟ <span>سجل دخولك</span>`;
+                confirmGroup.classList.add('show');
+            }
+        });
+
+        authBtn.addEventListener('click', () => {
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
+            const confirmPassword = document.getElementById('confirmPasswordInput').value.trim();
+
+            if(!email || !password) {
+                alert("الرجاء ملء جميع الحقول.");
+                return;
+            }
+
+            if (isLogin) {
+                signInWithEmailAndPassword(auth, email, password).then(() => {
+                    window.location.href = "main.html";
+                }).catch(() => {
+                    alert("خطأ في تسجيل الدخول: تأكد من البريد أو كلمة المرور.");
+                });
+            } else {
+                if(password !== confirmPassword) {
+                    alert("كلمتا المرور غير متطابقتين!");
+                    return;
+                }
+                if(password.length < 6) {
+                    alert("كلمة المرور يجب أن تكون 6 أحرف على الأقل.");
+                    return;
+                }
+
+                createUserWithEmailAndPassword(auth, email, password).then((res) => {
+                    const user = res.user;
+                    const defaultName = email.split('@')[0];
+                    set(ref(db, 'users/' + user.uid), {
+                        uid: user.uid,
+                        shortId: user.uid.substring(0, 6),
+                        name: defaultName,
+                        accountType: 'public'
+                    }).then(() => {
+                        window.location.href = "main.html";
+                    });
+                }).catch((error) => {
+                    alert("خطأ: " + error.message);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
