@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جاري التحميل...</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }
+        
+        .loading-container {
+            width: 100%;
+            max-width: 200px;
+            height: 3px;
+            background-color: #eee;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .loading-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #d4a017;
+            animation: loadingAnimation 1s infinite linear;
+            transform-origin: right;
+        }
+        @keyframes loadingAnimation {
+            0% { transform: scaleX(0); }
+            50% { transform: scaleX(0.5); }
+            100% { transform: scaleX(1); transform-origin: left; }
+        }
+        .loading-text {
+            font-size: 12px;
+            color: #777;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="loading-bar"></div>
+    </div>
+    <div class="loading-text">جاري التحميل...</div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDjZ7_KNTVAoBb2WnYselvQNd39YMZOarw",
+          authDomain: "my-wats-test.firebaseapp.com",
+          databaseURL: "https://my-wats-test-default-rtdb.firebaseio.com",
+          projectId: "my-wats-test",
+          storageBucket: "my-wats-test.firebasestorage.app",
+          messagingSenderId: "1094683201140",
+          appId: "1:1094683201140:web:b9f42046692f09353e8b21",
+          measurementId: "G-RZ5G8WYYY3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // تفعيل الحفظ المحلي الدائم للجلسة
+        setPersistence(auth, browserLocalPersistence).then(() => {
+            onAuthStateChanged(auth, (user) => {
+                // مهلة بسيطة جداً لضمان قراءة الجلسة المحلية بدون أي لخبطة
+                setTimeout(() => {
+                    if (user) {
+                        // إذا كان مسجلاً، اذهب لصفحة المحادثات مباشرة
+                        window.location.href = "main.html";
+                    } else {
+                        // إذا لم يكن مسجلاً، اذهب لصفحة تسجيل الدخول
+                        window.location.href = "auth.html";
+                    }
+                }, 400);
+            });
+        });
+    </script>
+</body>
+</html>
